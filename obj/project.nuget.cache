@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "hFno5KzfKD8=",
+  "dgSpecHash": "dcZ77DKUSz8=",
   "success": true,
   "projectFilePath": "C:\\DevProjects\\dotnet things\\SharpLoadTester\\SharpLoadTester.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\Roter\\.nuget\\packages\\system.commandline\\2.0.0-beta4.22272.1\\system.commandline.2.0.0-beta4.22272.1.nupkg.sha512"
+  ],
   "logs": []
 }
