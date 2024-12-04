@@ -80,6 +80,9 @@ jobs:
     needs: build-and-release
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -88,6 +91,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: ./artifacts
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Checking contents of the artifacts directory:"
+          ls -R ./artifacts
 
       - name: Create GitHub Release
         id: create-release
@@ -100,34 +108,13 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload release asset for linux-x64
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./artifacts/binaries-linux-x64/SharpLoadTester-${{ github.ref_name }}-linux-x64.zip
-          asset_name: SharpLoadTester-${{ github.ref_name }}-linux-x64.zip
-          asset_content_type: application/zip
-
-      - name: Upload release asset for win-x64
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./artifacts/binaries-win-x64/SharpLoadTester-${{ github.ref_name }}-win-x64.zip
-          asset_name: SharpLoadTester-${{ github.ref_name }}-win-x64.zip
-          asset_content_type: application/zip
-
-      - name: Upload release asset for osx-x64
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./artifacts/binaries-osx-x64/SharpLoadTester-${{ github.ref_name }}-osx-x64.zip
-          asset_name: SharpLoadTester-${{ github.ref_name }}-osx-x64.zip
-          asset_content_type: application/zip
-
-      - name: Upload release asset for osx-arm64
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./artifacts/binaries-osx-arm64/SharpLoadTester-${{ github.ref_name }}-osx-arm64.zip
-          asset_name: SharpLoadTester-${{ github.ref_name }}-osx-arm64.zip
-          asset_content_type: application/zip
+      - name: Upload release assets
+        run: |
+          echo "Uploading release assets..."
+          for file in ./artifacts/*.zip; do
+            echo "Uploading $file"
+            curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/zip" \
+              --data-binary @"$file" \
+              "${{ steps.create-release.outputs.upload_url }}?name=$(basename $file)"
+          done
