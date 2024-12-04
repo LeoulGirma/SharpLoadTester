@@ -53,10 +53,21 @@ jobs:
           echo "Contents of the build directory:"
           ls -R ./artifacts/${{ matrix.runtime }}
 
-      - name: Create zip archive of binaries
+      - name: Create zip archive of binaries (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
         run: |
           echo "Creating zip archive for runtime: ${{ matrix.runtime }}"
           zip -j "./artifacts/SharpLoadTester-${{ github.ref_name }}-${{ matrix.runtime }}.zip" ./artifacts/${{ matrix.runtime }}/*
+          echo "Successfully created zip file."
+
+      - name: Create zip archive of binaries (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Output "Creating zip archive for runtime: ${{ matrix.runtime }}"
+          Compress-Archive -Path ./artifacts/${{ matrix.runtime }}\* -DestinationPath ./artifacts/SharpLoadTester-${{ github.ref_name }}-${{ matrix.runtime }}.zip
+          Write-Output "Successfully created zip file."
 
       - name: Upload binaries as artifacts
         uses: actions/upload-artifact@v3
@@ -93,6 +104,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./artifacts
+          asset_path: ./artifacts/SharpLoadTester-${{ github.ref_name }}-*.zip
           asset_name: ${{ matrix.runtime }}-binary.zip
           asset_content_type: application/zip
