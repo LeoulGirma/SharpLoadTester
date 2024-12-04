@@ -1,12 +1,10 @@
 name: Release Workflow
 
 on:
+  push:
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'Tag name for release (e.g., v1.0.0)'
-        required: false
-        default: ''
 
 permissions:
   contents: write
@@ -38,15 +36,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - name: Restore dependencies with retry
+        shell: bash
+        run: |
+          set -e
+          for i in {1..5}; do
+            dotnet restore && break
+            echo "Restore failed, retrying in 10 seconds..."
+            sleep 10
+          done
 
       - name: Build single file executable
         run: |
+          echo "Building for runtime: ${{ matrix.runtime }}"
           dotnet publish ./SharpLoadTester.csproj -c Release -r ${{ matrix.runtime }} --self-contained true -p:PublishTrimmed=true -p:TrimMode=link -p:PublishSingleFile=true -o ./artifacts/${{ matrix.runtime }}
+          echo "Contents of the build directory:"
+          ls -R ./artifacts/${{ matrix.runtime }}
 
       - name: Create zip archive of binaries
         run: |
+          echo "Creating zip archive for runtime: ${{ matrix.runtime }}"
           zip -j "./artifacts/SharpLoadTester-${{ github.ref_name }}-${{ matrix.runtime }}.zip" ./artifacts/${{ matrix.runtime }}/*
 
       - name: Upload binaries as artifacts
@@ -64,21 +73,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Create a new tag (if not provided)
-        id: tag
-        run: |
-          if [ -z "${{ github.event.inputs.tag_name }}" ]; then
-            export TAG_NAME="v$(date +'%Y%m%d%H%M%S')"
-          else
-            export TAG_NAME="${{ github.event.inputs.tag_name }}"
-          fi
-          echo "tag_name=$TAG_NAME" >> $GITHUB_ENV
-
-      - name: Push the new tag
-        run: |
-          git tag ${{ env.tag_name }}
-          git push origin ${{ env.tag_name }}
-
       - name: Download all artifact ZIP files
         uses: actions/download-artifact@v3
         with:
@@ -90,8 +84,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ env.tag_name }}
-          release_name: Release ${{ env.tag_name }}
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
 
@@ -99,6 +93,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./artifacts/*.zip
-          asset_name: SharpLoadTester.zip
+          asset_path: ./artifacts
+          asset_name: ${{ matrix.runtime }}-binary.zip
           asset_content_type: application/zip
