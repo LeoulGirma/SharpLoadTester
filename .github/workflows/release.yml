@@ -1,0 +1,141 @@
+name: Release Workflow
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build and Publish Release
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        runtime: [linux-x64, win-x64, osx-x64, osx-arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          # For Windows, NuGet packages are stored in %UserProfile%\.nuget\packages
+          # For Unix-like systems, they are stored in ~/.nuget/packages
+          path: ${{ runner.os == 'Windows' && 'C:\\Users\\runneradmin\\.nuget\\packages' || '~/.nuget/packages' }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies with retry
+        shell: bash
+        run: |
+          set -e
+          for i in {1..5}; do
+            dotnet restore && break
+            echo "Restore failed, retrying in 10 seconds..."
+            sleep 10
+          done
+
+      - name: Build single file executable
+        run: |
+          echo "Building for runtime: ${{ matrix.runtime }}"
+          # Ensure you're targeting the project file, not the solution
+          dotnet publish ./SharpLoadTester.csproj -c Release -r ${{ matrix.runtime }} --self-contained true -p:PublishTrimmed=true -p:TrimMode=link -p:PublishSingleFile=true -o ./artifacts/${{ matrix.runtime }}
+          echo "Contents of the build directory:"
+          ls -R ./artifacts/${{ matrix.runtime }}
+
+      - name: Verify build directory (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          echo "Checking if the build directory exists and contains files..."
+          if [ ! -d "./artifacts/${{ matrix.runtime }}" ] || [ -z "$(ls -A ./artifacts/${{ matrix.runtime }})" ]; then
+            echo "Build directory is empty or does not exist!"
+            exit 1
+          fi
+
+      - name: Verify build directory (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Output "Checking if the build directory exists and contains files..."
+          if (-Not (Test-Path "./artifacts/${{ matrix.runtime }}")) {
+            Write-Output "Build directory does not exist!"
+            exit 1
+          }
+          $files = Get-ChildItem "./artifacts/${{ matrix.runtime }}" | Measure-Object
+          if ($files.Count -eq 0) {
+            Write-Output "Build directory is empty!"
+            exit 1
+          }
+
+      - name: Create zip archive of binaries (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          echo "Creating zip archive for runtime: ${{ matrix.runtime }}"
+          zip -j "./artifacts/SharpLoadTester-${{ github.ref_name }}-${{ matrix.runtime }}.zip" ./artifacts/${{ matrix.runtime }}/*
+          echo "Successfully created zip file."
+
+      - name: Create zip archive of binaries (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          echo "Creating zip archive for runtime: ${{ matrix.runtime }}"
+          Compress-Archive -Path ./artifacts/${{ matrix.runtime }}\* -DestinationPath ./artifacts/SharpLoadTester-${{ github.ref_name }}-${{ matrix.runtime }}.zip
+          echo "Successfully created zip file."
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.runtime }}-binary
+          path: ./artifacts/*.zip
+
+  release:
+    name: Create GitHub Release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download all artifact ZIP files
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+
+      - name: Create GitHub Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for file in ./artifacts/*.zip; do
+            echo "Uploading $file"
+            curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Content-Type: application/zip" \
+              --data-binary @"$file" \
+              "${{ steps.create-release.outputs.upload_url }}/$(basename "$file")"
+          done
