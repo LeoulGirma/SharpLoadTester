@@ -3,15 +3,15 @@ name: Release Workflow
 on:
   push:
     tags:
-      - 'v*.*.*'
-  workflow_dispatch:
+      - 'v*.*.*'        # Triggers on tags like v1.0.0
+  workflow_dispatch:     # Allows manual triggering
 
 permissions:
-  contents: write
+  contents: write        # Grants necessary permissions
 
 jobs:
-  build-and-release:
-    name: Build and Publish Release
+  build:
+    name: Build and Package
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -53,7 +53,7 @@ jobs:
           echo "Contents of the build directory:"
           ls -R ./artifacts/${{ matrix.runtime }}
 
-      - name: Create zip archive of binaries (Unix)
+      - name: Create zip archive
         if: matrix.os != 'windows-latest'
         shell: bash
         run: |
@@ -61,7 +61,7 @@ jobs:
           zip -j "./artifacts/SharpLoadTester-${{ github.ref_name }}-${{ matrix.runtime }}.zip" ./artifacts/${{ matrix.runtime }}/*
           echo "Successfully created zip file."
 
-      - name: Create zip archive of binaries (Windows)
+      - name: Create zip archive (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
@@ -77,7 +77,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: build-and-release
+    needs: build
     runs-on: ubuntu-latest
 
     permissions:
@@ -92,16 +92,11 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: List downloaded artifacts
-        run: |
-          echo "Checking contents of the artifacts directory:"
-          ls -R ./artifacts
-
       - name: Create GitHub Release
         id: create-release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}  # Use built-in token
         with:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
@@ -109,12 +104,11 @@ jobs:
           prerelease: false
 
       - name: Upload release assets
-        run: |
-          echo "Uploading release assets..."
-          for file in ./artifacts/*.zip; do
-            echo "Uploading $file"
-            curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Content-Type: application/zip" \
-              --data-binary @"$file" \
-              "${{ steps.create-release.outputs.upload_url }}?name=$(basename $file)"
-          done
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}  # Use built-in token
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./artifacts/*.zip
+          asset_name: ${{ github.ref_name }}-${{ matrix.runtime }}.zip
+          asset_content_type: application/zip
