@@ -30,14 +30,27 @@ SharpLoadTester is a powerful and flexible load testing tool developed in C#. It
 
 ## Prerequisites
 
-- [.NET 7.0 SDK](https://dotnet.microsoft.com/download/dotnet/7.0) or later
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
 
 ## Installation
+
+### Option 1: Download Pre-built Executables (Recommended)
+
+Download the latest release for your platform from the [Releases page](https://github.com/LeoulGirma/SharpLoadTester/releases/latest):
+
+- **Windows (x64)**: `SharpLoadTester-v*-win-x64.zip`
+- **Linux (x64)**: `SharpLoadTester-v*-linux-x64.zip`
+- **macOS (Intel)**: `SharpLoadTester-v*-osx-x64.zip`
+- **macOS (Apple Silicon)**: `SharpLoadTester-v*-osx-arm64.zip`
+
+Extract the ZIP file and run the executable directly - no installation required!
+
+### Option 2: Build from Source
 
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yourusername/SharpLoadTester.git
+   git clone https://github.com/LeoulGirma/SharpLoadTester.git
    cd SharpLoadTester
    ```
 
@@ -67,8 +80,8 @@ SharpLoadTester is a command-line tool. Below are the instructions on how to use
 | -------------------------- | ---------------------------------------------------------------------------------------------------- | -------- | ---------- |
 | `--url`                    | **Target URL** to send requests to.                                                                 | Yes      | N/A        |
 | `--requests-per-second`    | Number of requests to send per second.                                                               | No       | Unlimited  |
-| `--total-requests`         | **Total number of requests** to send.                                                               | No       | `2000000`  |
-| `--concurrency`            | Number of concurrent tasks to execute.                                                               | No       | `200`      |
+| `--total-requests`         | **Total number of requests** to send.                                                               | No       | `200`      |
+| `--concurrency`            | Number of concurrent tasks to execute.                                                               | No       | `20`       |
 | `--start-id`               | **Start ID** to append to the URL (useful for APIs requiring an identifier).                        | No       | N/A        |
 | `--end-id`                 | **End ID** to append to the URL (useful for APIs requiring an identifier).                          | No       | N/A        |
 | `--method`                 | **HTTP method** to use (e.g., GET, POST, PUT, DELETE).                                              | No       | `GET`      |
