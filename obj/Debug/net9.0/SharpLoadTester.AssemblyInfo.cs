@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SharpLoadTester")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1efeba9d297cc1ccc0497e2947139d7b1c3499e3")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+56f099a498bbd3af9ddb2c5745e628a14d98c2e5")]
 [assembly: System.Reflection.AssemblyProductAttribute("SharpLoadTester")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SharpLoadTester")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
